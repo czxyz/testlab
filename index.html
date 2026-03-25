@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real or Fake Strain?</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --card: #151515;
+      --green: #4ade80;
+      --green-dim: #16a34a;
+      --red: #f87171;
+      --purple: #c084fc;
+      --text: #e5e5e5;
+      --muted: #737373;
+    }
+
+    body {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .smoke {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .smoke-particle {
+      position: absolute;
+      bottom: -80px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%);
+      animation: rise linear infinite;
+      filter: blur(40px);
+    }
+
+    @keyframes rise {
+      0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 0.3; }
+      100% { transform: translateY(-110vh) scale(2.5) rotate(180deg); opacity: 0; }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+      width: 100%;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+      margin-top: 40px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 4px;
+    }
+
+    header h1 .leaf { display: inline-block; }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .score-bar {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-bottom: 28px;
+      font-size: 1rem;
+    }
+
+    .score-bar span {
+      color: var(--muted);
+    }
+
+    .score-bar .val {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .score-bar .streak .val {
+      color: var(--purple);
+    }
+
+    .progress-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 32px;
+      justify-content: center;
+    }
+
+    .progress-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #262626;
+      transition: background 0.3s, transform 0.3s;
+    }
+
+    .progress-dot.correct { background: var(--green); transform: scale(1.15); }
+    .progress-dot.wrong { background: var(--red); transform: scale(1.15); }
+    .progress-dot.current { background: #525252; box-shadow: 0 0 8px rgba(74,222,128,0.4); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid #262626;
+      border-radius: 20px;
+      padding: 40px 28px 32px;
+      width: 100%;
+      text-align: center;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.4s;
+    }
+
+    .card.flash-correct { border-color: var(--green); }
+    .card.flash-wrong { border-color: var(--red); }
+
+    .strain-name {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+      min-height: 3em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .strain-type {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 0;
+      min-height: 1.4em;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 16px;
+      border-radius: 14px;
+      border: 2px solid #333;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
+
+    .btn-real:hover:not(:disabled) {
+      border-color: var(--green);
+      background: rgba(74,222,128,0.08);
+      color: var(--green);
+    }
+
+    .btn-fake:hover:not(:disabled) {
+      border-color: var(--red);
+      background: rgba(248,113,113,0.08);
+      color: var(--red);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .feedback {
+      text-align: center;
+      min-height: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .feedback-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .feedback-text.correct { color: var(--green); }
+    .feedback-text.wrong { color: var(--red); }
+
+    .feedback-detail {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    /* Game Over */
+    .game-over {
+      display: none;
+      text-align: center;
+    }
+
+    .game-over h2 {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+
+    .game-over .final-score {
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: var(--green);
+      margin: 16px 0;
+    }
+
+    .game-over .rating {
+      font-size: 1.1rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .btn-play-again {
+      padding: 14px 40px;
+      border-radius: 14px;
+      border: 2px solid var(--green);
+      background: rgba(74,222,128,0.1);
+      color: var(--green);
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-play-again:hover {
+      background: rgba(74,222,128,0.2);
+      transform: translateY(-2px);
+    }
+
+    .share-btn {
+      margin-top: 12px;
+      padding: 10px 28px;
+      border-radius: 12px;
+      border: 1px solid #333;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .share-btn:hover {
+      color: var(--text);
+      border-color: #555;
+    }
+
+    .footer {
+      margin-top: auto;
+      padding: 24px 0;
+      color: #404040;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    /* Shake animation */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    .shake { animation: shake 0.4s ease-in-out; }
+
+    /* Keyboard hint */
+    .key-hint {
+      color: #404040;
+      font-size: 0.8rem;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .key-hint kbd {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: inherit;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="smoke" id="smoke"></div>
+
+<div class="container">
+  <header>
+    <h1><span class="leaf">&#127807;</span> Real or Fake Strain?</h1>
+    <p>Can you tell the real cannabis strains from the fakes?</p>
+  </header>
+
+  <div class="score-bar">
+    <span>Score: <span class="val" id="score">0</span> / <span id="total">10</span></span>
+    <span class="streak">Streak: <span class="val" id="streak">0</span></span>
+  </div>
+
+  <div class="progress-row" id="progress"></div>
+
+  <div id="game-area">
+    <div class="card" id="card">
+      <div class="strain-name" id="strain-name">Loading...</div>
+      <div class="strain-type" id="strain-type"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-real" id="btn-real" onclick="guess(true)">&#127807; Real</button>
+      <button class="btn btn-fake" id="btn-fake" onclick="guess(false)">&#129488; Fake</button>
+    </div>
+
+    <div class="key-hint"><kbd>&#8592;</kbd> Real &nbsp;&bull;&nbsp; <kbd>&#8594;</kbd> Fake</div>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="game-over" id="game-over">
+    <h2>Game Over!</h2>
+    <div class="final-score" id="final-score">0/10</div>
+    <div class="rating" id="rating"></div>
+    <button class="btn-play-again" onclick="startGame()">Play Again</button>
+    <br>
+    <button class="share-btn" onclick="shareResult()">&#128203; Copy Result</button>
+  </div>
+
+  <div class="footer">a very serious game</div>
+</div>
+
+<script>
+// ========== STRAIN DATA ==========
+const REAL_STRAINS = [
+  { name: "Alaskan Thunder Fuck", type: "Sativa", note: "A legendary sativa from the Matanuska Valley, Alaska." },
+  { name: "Cat Piss", type: "Sativa", note: "Named for its pungent ammonia-like aroma. Very real." },
+  { name: "Crouching Tiger Hidden Alien", type: "Hybrid", note: "A real hybrid bred by exotic seed companies." },
+  { name: "Alien OG", type: "Hybrid", note: "A potent cross of Tahoe OG and Alien Kush." },
+  { name: "Purple Monkey Balls", type: "Indica", note: "A real indica with deep purple buds." },
+  { name: "Dog Shit", type: "Indica", note: "Yes, this is a real strain. Named for its smell." },
+  { name: "Green Crack", type: "Sativa", note: "Renamed by Snoop Dogg himself. Originally 'Cush'." },
+  { name: "Girl Scout Cookies", type: "Hybrid", note: "One of the most famous strains from the Bay Area." },
+  { name: "Gorilla Glue", type: "Hybrid", note: "So sticky it'll glue your fingers together." },
+  { name: "Zkittlez", type: "Indica", note: "Award-winning strain that tastes like the candy." },
+  { name: "Wedding Cake", type: "Hybrid", note: "A cross of Triangle Kush and Animal Mints." },
+  { name: "Cheetah Piss", type: "Hybrid", note: "A Cookies Fam creation. Real as it gets." },
+  { name: "Funky Charms", type: "Hybrid", note: "A cereal-themed strain with fruity flavors." },
+  { name: "Donkey Butter", type: "Hybrid", note: "A cross of Grease Monkey and Triple OG." },
+  { name: "Meat Breath", type: "Indica", note: "Yes, it's named for its savory meat-like aroma." },
+  { name: "Obama Runtz", type: "Hybrid", note: "A cross of Runtz and an unknown Afghani strain." },
+  { name: "Peanut Butter Breath", type: "Hybrid", note: "Tastes nutty and herbal. Award-winner." },
+  { name: "Strawberry Cough", type: "Sativa", note: "Featured in the movie 'Children of Men'." },
+  { name: "Motor Breath", type: "Indica", note: "Bred by Pisces Genetics with heavy diesel flavors." },
+  { name: "Golden Goat", type: "Hybrid", note: "An accidental crossbreed from Kansas." },
+  { name: "Lamb's Bread", type: "Sativa", note: "Bob Marley's favorite strain from Jamaica." },
+  { name: "Durban Poison", type: "Sativa", note: "A pure sativa landrace from South Africa." },
+  { name: "Death Star", type: "Indica", note: "A potent cross of Sensi Star and Sour Diesel." },
+  { name: "Bruce Banner", type: "Hybrid", note: "Named after the Hulk. Can hit 30% THC." },
+  { name: "Ghost Train Haze", type: "Sativa", note: "One of the most potent sativas ever tested." },
+  { name: "Grandpa's Breath", type: "Indica", note: "A heavy hitter from Dungeons Vault Genetics." },
+  { name: "Unicorn Poop", type: "Hybrid", note: "A colorful GMO x Sophisticated Lady cross." },
+  { name: "Cheese", type: "Indica", note: "A UK classic known for its stinky cheese smell." },
+  { name: "Biscotti", type: "Hybrid", note: "A Cookies strain with Italian dessert vibes." },
+  { name: "Do-Si-Dos", type: "Indica", note: "Named after the Girl Scout cookie. OGKB cross." },
+  { name: "Mimosa", type: "Hybrid", note: "Clementine x Purple Punch. Brunch vibes." },
+  { name: "White Widow", type: "Hybrid", note: "A legendary Amsterdam coffeeshop staple since the 90s." },
+  { name: "AK-47", type: "Hybrid", note: "Named for hitting hard and fast. Award-winning since 1999." },
+  { name: "Face Off OG", type: "Indica", note: "Named after the Nicolas Cage movie." },
+  { name: "Grape Ape", type: "Indica", note: "Tastes like grape candy with purple buds." },
+  { name: "Lemon Haze", type: "Sativa", note: "A zesty cross of Lemon Skunk and Silver Haze." },
+  { name: "Jack Herer", type: "Sativa", note: "Named after the cannabis activist and author." },
+  { name: "Northern Lights", type: "Indica", note: "One of the most famous indicas of all time." },
+  { name: "Trainwreck", type: "Sativa", note: "A powerful sativa from Northern California." },
+  { name: "Pineapple Express", type: "Hybrid", note: "Made famous by the Seth Rogen movie." },
+];
+
+const FAKE_STRAINS = [
+  { name: "Dolphin Diarrhea", type: "Sativa" },
+  { name: "Elon's Muskmelon", type: "Hybrid" },
+  { name: "Grandma's Attic", type: "Indica" },
+  { name: "Sentient Broccoli", type: "Sativa" },
+  { name: "Wet Sock OG", type: "Indica" },
+  { name: "Karen's Kombucha", type: "Hybrid" },
+  { name: "Angry Mailman", type: "Sativa" },
+  { name: "Tuesday Afternoon", type: "Indica" },
+  { name: "Haunted Burrito", type: "Hybrid" },
+  { name: "Quantum Kush Collapse", type: "Sativa" },
+  { name: "Soggy Waffle", type: "Indica" },
+  { name: "Funky Uncle", type: "Hybrid" },
+  { name: "Suspicious Mango", type: "Sativa" },
+  { name: "Wizard's Dandruff", type: "Indica" },
+  { name: "Electric Potato", type: "Hybrid" },
+  { name: "Lazy Sasquatch", type: "Indica" },
+  { name: "Disco Parsnip", type: "Sativa" },
+  { name: "Melancholy Pretzel", type: "Hybrid" },
+  { name: "Bluetooth Kush", type: "Indica" },
+  { name: "Emotional Dumpling", type: "Hybrid" },
+  { name: "Spaghetti Nightmare", type: "Indica" },
+  { name: "Chaotic Muffin", type: "Sativa" },
+  { name: "Anxious Panda", type: "Hybrid" },
+  { name: "Velvet Raccoon", type: "Indica" },
+  { name: "Divorced Dad OG", type: "Hybrid" },
+  { name: "Existential Lemon", type: "Sativa" },
+  { name: "Confused Basil", type: "Hybrid" },
+  { name: "Nap Time Express", type: "Indica" },
+  { name: "Cosmic Lint", type: "Sativa" },
+  { name: "Fridge Surprise", type: "Hybrid" },
+  { name: "Paranoid Pineapple", type: "Sativa" },
+  { name: "Corporate Retreat", type: "Indica" },
+  { name: "Moldy Bible", type: "Hybrid" },
+  { name: "Toaster Strudel Haze", type: "Sativa" },
+  { name: "Regretful Taco", type: "Indica" },
+  { name: "WiFi Password", type: "Hybrid" },
+  { name: "Midnight Laundry", type: "Indica" },
+  { name: "Volatile Pudding", type: "Sativa" },
+  { name: "Flat Earth Kush", type: "Indica" },
+  { name: "Passive Aggressive OG", type: "Hybrid" },
+];
+
+// ========== GAME STATE ==========
+const ROUNDS = 10;
+let round = 0;
+let score = 0;
+let streakCount = 0;
+let bestStreak = 0;
+let results = [];
+let currentStrain = null;
+let waiting = false;
+let usedIndices = { real: new Set(), fake: new Set() };
+
+// ========== SMOKE PARTICLES ==========
+function initSmoke() {
+  const container = document.getElementById('smoke');
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement('div');
+    p.className = 'smoke-particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (8 + Math.random() * 12) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (80 + Math.random() * 100) + 'px';
+    container.appendChild(p);
+  }
+}
+
+// ========== GAME LOGIC ==========
+function pickStrain() {
+  const isReal = Math.random() < 0.5;
+  const pool = isReal ? REAL_STRAINS : FAKE_STRAINS;
+  const used = isReal ? usedIndices.real : usedIndices.fake;
+
+  if (used.size >= pool.length) used.clear();
+
+  let idx;
+  do { idx = Math.floor(Math.random() * pool.length); } while (used.has(idx));
+  used.add(idx);
+
+  return { ...pool[idx], isReal };
+}
+
+function renderProgress() {
+  const row = document.getElementById('progress');
+  row.innerHTML = '';
+  for (let i = 0; i < ROUNDS; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'progress-dot';
+    if (i < results.length) {
+      dot.classList.add(results[i] ? 'correct' : 'wrong');
+    } else if (i === results.length) {
+      dot.classList.add('current');
+    }
+    row.appendChild(dot);
+  }
+}
+
+function showStrain() {
+  currentStrain = pickStrain();
+  document.getElementById('strain-name').textContent = currentStrain.name;
+  document.getElementById('strain-type').textContent = currentStrain.type;
+  document.getElementById('feedback').innerHTML = '';
+  document.getElementById('btn-real').disabled = false;
+  document.getElementById('btn-fake').disabled = false;
+  renderProgress();
+}
+
+function guess(guessedReal) {
+  if (waiting) return;
+  waiting = true;
+
+  const correct = guessedReal === currentStrain.isReal;
+  const card = document.getElementById('card');
+  const feedback = document.getElementById('feedback');
+
+  if (correct) {
+    score++;
+    streakCount++;
+    if (streakCount > bestStreak) bestStreak = streakCount;
+    card.classList.add('flash-correct');
+  } else {
+    streakCount = 0;
+    card.classList.add('flash-wrong');
+    card.classList.add('shake');
+  }
+
+  results.push(correct);
+  document.getElementById('score').textContent = score;
+  document.getElementById('streak').textContent = streakCount;
+  document.getElementById('btn-real').disabled = true;
+  document.getElementById('btn-fake').disabled = true;
+
+  const icon = correct ? '&#10003;' : '&#10007;';
+  const cls = correct ? 'correct' : 'wrong';
+  const answer = currentStrain.isReal ? 'Real' : 'Fake';
+  let detail = currentStrain.isReal
+    ? (currentStrain.note || "It's a real strain!")
+    : "We made that one up.";
+
+  feedback.innerHTML = `
+    <div class="feedback-text ${cls}">${icon} ${correct ? 'Correct!' : 'Wrong!'} It's ${answer}.</div>
+    <div class="feedback-detail">${detail}</div>
+  `;
+
+  renderProgress();
+  round++;
+
+  setTimeout(() => {
+    card.classList.remove('flash-correct', 'flash-wrong', 'shake');
+    waiting = false;
+    if (round >= ROUNDS) {
+      endGame();
+    } else {
+      showStrain();
+    }
+  }, 1800);
+}
+
+function endGame() {
+  document.getElementById('game-area').style.display = 'none';
+  const go = document.getElementById('game-over');
+  go.style.display = 'block';
+  document.getElementById('final-score').textContent = `${score}/${ROUNDS}`;
+
+  let rating;
+  if (score === ROUNDS) rating = "Certified Budtender. You know your stuff.";
+  else if (score >= 8) rating = "Connoisseur. Impressive nose for strains.";
+  else if (score >= 6) rating = "Casual Toker. Not bad at all.";
+  else if (score >= 4) rating = "Tourist. Maybe visit a dispensary sometime.";
+  else rating = "Narc. You clearly don't know your strains.";
+
+  document.getElementById('rating').textContent = rating;
+}
+
+function shareResult() {
+  const emojis = results.map(r => r ? '&#127807;' : '&#128168;');
+  const el = document.createElement('textarea');
+  const plain = results.map(r => r ? '🌿' : '💨').join('');
+  el.value = `Real or Fake Strain? ${score}/${ROUNDS}\n${plain}\nPlay at: real-or-fake-strain.com`;
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+  const btn = document.querySelector('.share-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.innerHTML = '&#128203; Copy Result', 2000);
+}
+
+function startGame() {
+  round = 0;
+  score = 0;
+  streakCount = 0;
+  bestStreak = 0;
+  results = [];
+  usedIndices = { real: new Set(), fake: new Set() };
+  document.getElementById('score').textContent = '0';
+  document.getElementById('streak').textContent = '0';
+  document.getElementById('game-area').style.display = 'block';
+  document.getElementById('game-over').style.display = 'none';
+  showStrain();
+}
+
+// Keyboard controls
+document.addEventListener('keydown', (e) => {
+  if (waiting) return;
+  if (e.key === 'ArrowLeft' || e.key === '1') guess(true);
+  if (e.key === 'ArrowRight' || e.key === '2') guess(false);
+});
+
+// Init
+initSmoke();
+startGame();
+</script>
+
+</body>
+</html>
